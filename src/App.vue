@@ -153,7 +153,7 @@ watch(animationsEnabled, (v) => {
       </table>
 
       <div class="controls">
-        <label><input type="checkbox" id="checkbox" v-model="animationsEnabled" /> Enable Animations</label>
+        <label class="help" title="Seizure Warning? Pretty obnoxious? Only kinda feels like it goes to the beat?"><input type="checkbox" id="checkbox" v-model="animationsEnabled" /> Enable Animations</label>
       </div>
     </div>
   </div>
