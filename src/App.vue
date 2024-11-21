@@ -13,6 +13,7 @@ type Timing = {
 
 let resetTimeout: number | undefined;
 let timing: Timing[] = [];
+let animationsEnabled: Ref<boolean, boolean> = ref(false);
 let wasReset: Ref<boolean, boolean> = ref(false);
 let bpm: Ref<number, number> = ref(0);
 let mae: Ref<number, number> = ref(0);
@@ -68,9 +69,11 @@ const doAnimating = (ints: number[], avg: number) => {
     const duration = avg / 1000 * (1 / ANIMATION_RATE); // ms->s, apply rate
     const pageWrap = wrapRef.value as unknown as HTMLElement;
     if (pageWrap) {
-      pageWrap.style.animationDuration = `0s`; // Dynamically set animation speed
-      pageWrap.style.animationDuration = `${duration}s`; // Dynamically set animation speed
-      if (!pageWrap.classList.contains('pulsing')) {
+      pageWrap.style.animationDuration = `0s`;
+      pageWrap.style.animationDuration = `${duration}s`;
+
+      // only change the class list if animations are enabled
+      if (!pageWrap.classList.contains('pulsing') && animationsEnabled.value) {
         pageWrap.classList.add('pulsing');
       }
     }
@@ -109,6 +112,19 @@ watch(timing, () => {
     }
   }
 })
+
+watch(animationsEnabled, (v) => {
+  if (v === false) {
+    const pageWrap = wrapRef.value as unknown as HTMLElement;
+    pageWrap.classList.remove('pulsing');
+    return;
+  }
+
+  if (bpm) {
+    const pageWrap = wrapRef.value as unknown as HTMLElement;
+    pageWrap.classList.add('pulsing');
+  }
+})
 </script>
 
 <template>
@@ -136,15 +152,37 @@ watch(timing, () => {
         </tbody>
       </table>
 
+      <div class="controls">
+        <label><input type="checkbox" id="checkbox" v-model="animationsEnabled" /> Enable Animations</label>
+      </div>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
 @keyframes pulse {
-  0%{background-position:0% 38%}
-  50%{background-position:100% 63%}
-  100%{background-position:0% 38%}
+  0%{
+    background-position:0% 33%
+  }
+  25%{
+  --lightness: 20%;
+  }
+  50%{
+    background-position:100% 67%;
+    // LOL
+    --angle: 12deg;
+    --degreeshift: 20;
+    --saturation: 50%;
+    --movement: 90%;
+    --lightness: 20%;
+    --basehue: 40;
+  }
+  75%{
+  --lightness: 20%;
+  }
+  100%{
+    background-position:0% 33%
+  }
 }
 
 .pulsing {
@@ -155,10 +193,14 @@ watch(timing, () => {
 
 #page-wrap {
   // lol i spent way more time playing with these numbers for fun than i care to admit
-  --basehue: 230;
-  --degreeshift: 40;
-  --saturation: 45%;
-  --lightness: 15%;
+  --basehue: 200;
+  --degreeshift: 5;
+  --saturation: 85%;
+  --lightness: 20%;
+  --movement: 2%;
+  --angle: 90deg;
+
+
   --highlight: hsl(calc(var(--basehue) + (var(--degreeshift) / 2)), var(--saturation), var(--lightness));
   --shadow: hsl(calc(var(--basehue) - (var(--degreeshift) / 2)), var(--saturation), var(--lightness));
 
@@ -170,8 +212,8 @@ watch(timing, () => {
   padding: 0;
   margin: 0;
   box-sizing: border-box;
-  background: linear-gradient(236deg, var(--highlight), var(--shadow), var(--highlight), var(--shadow));
-  background-size: 800% 800%;
+  background: linear-gradient(var(--angle), var(--highlight), var(--shadow), var(--highlight), var(--shadow));
+  background-size: var(--movement) var(--movement);
   color: #ccc;
 
   &:focus {
