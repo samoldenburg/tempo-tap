@@ -2,6 +2,9 @@
 import { type Ref } from 'vue';
 import { onMounted, ref, watch } from 'vue'
 
+const ORIGIN_NOTE = 5;
+const ANIMATION_RATE = 1/2;
+
 const wrapRef = ref<HTMLElement | null>(null);
 
 type Timing = {
@@ -10,11 +13,10 @@ type Timing = {
 
 let resetTimeout: number | undefined;
 let timing: Timing[] = [];
-let showHelp: Ref<boolean, boolean> = ref(false);
 let wasReset: Ref<boolean, boolean> = ref(false);
 let bpm: Ref<number, number> = ref(0);
-let stdDev: Ref<number, number> = ref(0);
 let mae: Ref<number, number> = ref(0);
+let stdDev: Ref<number, number> = ref(0);
 
 const msIntervalToBpm = (interval: number): number => 60000/interval
 
@@ -52,15 +54,21 @@ const doCalculations = (ints: number[], avg: number) => {
     // timing calculations
     bpm.value = msIntervalToBpm(avg)
     stdDev.value = standardDeviation(avg, ints)
-    mae.value = meanAbsoluteError(avg, ints)
+
+    // 5 intervals or more
+    if (ints.length >= ORIGIN_NOTE) {
+      // start at the 4th index
+      mae.value = meanAbsoluteError(Math.round(avg), ints.slice(ORIGIN_NOTE - 1))
+    }
   }
 }
 
 const doAnimating = (ints: number[], avg: number) => {
   if (ints.length > 1) {
-    const duration = avg / 1000 * 4; // Convert ms to seconds for CSS
+    const duration = avg / 1000 * (1 / ANIMATION_RATE); // ms->s, apply rate
     const pageWrap = wrapRef.value as unknown as HTMLElement;
     if (pageWrap) {
+      pageWrap.style.animationDuration = `0s`; // Dynamically set animation speed
       pageWrap.style.animationDuration = `${duration}s`; // Dynamically set animation speed
       if (!pageWrap.classList.contains('pulsing')) {
         pageWrap.classList.add('pulsing');
@@ -105,15 +113,8 @@ watch(timing, () => {
 
 <template>
   <div id="page-wrap" tabindex="0" ref="wrapRef" @keydown="handleKey">
-    <div v-if="showHelp" id="help">
-      <button @click="showHelp = false">x</button>
-      <h2>Help</h2>
-      <p>Tap along with any key to the beat of a song and learn the BPM of that song.</p>
-      <p>Press Escape, or wait 5 seconds to reset.</p>
-    </div>
-
     <div id="inner">
-      <h1 @click="showHelp = true">Tempo Tap</h1>
+      <h1 class="help" title="Tap to the beat of a song. Esc to reset.">Tempo Tap</h1>
       <h2>BPM: {{ bpm.toFixed(2) }}</h2>
 
       <h3 v-if="wasReset">😎</h3>
@@ -125,12 +126,12 @@ watch(timing, () => {
           <td>{{ timing.length }}</td>
         </tr>
         <tr>
-          <th>Mean Absolute Error</th>
-          <td>{{ mae.toFixed(2) }}</td>
+          <th class="help" title="Based on the timing of your 5th keyPress, and the current BPM rounded to the nearest whole number">Mean Absolute Error</th>
+          <td>{{ mae == 0 ? "(no data)" : mae.toFixed(2) }}</td>
         </tr>
         <tr>
-          <th>Standard Deviation *3</th>
-          <td>{{  (stdDev*3).toFixed(2) }}</td>
+          <th>Standard Deviation</th>
+          <td>{{  stdDev.toFixed(2) }}</td>
         </tr>
         </tbody>
       </table>
@@ -153,8 +154,13 @@ watch(timing, () => {
 }
 
 #page-wrap {
-  --highlight: rgb(0, 68, 68);
-  --shadow: rgb(17, 41, 85);
+  // lol i spent way more time playing with these numbers for fun than i care to admit
+  --basehue: 230;
+  --degreeshift: 40;
+  --saturation: 45%;
+  --lightness: 15%;
+  --highlight: hsl(calc(var(--basehue) + (var(--degreeshift) / 2)), var(--saturation), var(--lightness));
+  --shadow: hsl(calc(var(--basehue) - (var(--degreeshift) / 2)), var(--saturation), var(--lightness));
 
   width: 100%;
   height: 100%;
@@ -173,28 +179,17 @@ watch(timing, () => {
     outline: none;
   }
 
-  #help {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 30rem;
-    padding: 2rem;
-    background: #666;
-    z-index: 999;
+  .help {
+    cursor: help;
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
 
-    button {
-      position: absolute;
-      top: 0;
-      right: 0;
-      background: none;
-      border: none;
-      font-size: 2rem;
-      color: white;
-      padding: 1rem;
-      cursor: pointer;
+    &:after {
+      content: "❓";
+      font-size: 0.5em;
+      position:relative;
+      bottom: 1em;
     }
-
   }
 
   #inner {
@@ -211,16 +206,6 @@ watch(timing, () => {
     h1 {
       margin: 2rem 0;
       padding: 0;
-      cursor: help;
-      text-decoration-line: underline;
-      text-decoration-style: dashed;
-
-      &:after {
-        content: "❓";
-        font-size: 0.75rem;
-        position:relative;
-        bottom: 1rem;
-      }
     }
 
     h2 {
@@ -245,6 +230,7 @@ watch(timing, () => {
 
       td {
         text-align: right;
+        width: 5rem;
       }
     }
   }
