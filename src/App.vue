@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { type Ref } from 'vue';
 import { onMounted, ref, watch } from 'vue'
+import Charts from './Charts.vue'
 
 const ORIGIN_NOTE = 5;
 const ANIMATION_RATE = 1/2;
 
 const wrapRef = ref<HTMLElement | null>(null);
 
-type Timing = {
+export type Timing = {
   t: number;
 }
 
 let resetTimeout: number | undefined;
-let timing: Timing[] = [];
-let animationsEnabled: Ref<boolean, boolean> = ref(false);
+let timing: Ref<Timing[], Timing[]> = ref([]);
+let ints: Ref<number[], number[]> = ref([]);
+let animationsEnabled: Ref<boolean, boolean> = ref(true);
 let wasReset: Ref<boolean, boolean> = ref(false);
 let bpm: Ref<number, number> = ref(0);
 let mae: Ref<number, number> = ref(0);
@@ -40,14 +42,7 @@ const meanAbsoluteError = (mean: number, intervals: number[]): number => {
 };
 
 const reset = () => {
-  timing = []
-  console.log(wrapRef)
-
-  // reset display
-  wasReset.value = true
-  setTimeout(() => {
-    wasReset.value = false
-  }, 5000)
+  timing.value = []
 }
 
 const doCalculations = (ints: number[], avg: number) => {
@@ -66,7 +61,7 @@ const doCalculations = (ints: number[], avg: number) => {
 
 const doAnimating = (ints: number[], avg: number) => {
   if (ints.length > 1) {
-    const duration = avg / 1000 * (1 / ANIMATION_RATE); // ms->s, apply rate
+    const duration = Math.round(avg) / 1000 * (1 / ANIMATION_RATE); // ms->s, apply rate
     const pageWrap = wrapRef.value as unknown as HTMLElement;
     if (pageWrap) {
       pageWrap.style.animationDuration = `0s`;
@@ -86,23 +81,21 @@ const handleKey = (event: KeyboardEvent) => {
     return;
   }
 
-  wasReset.value = false
-
-  timing.push({
+  timing.value.push({
     t: (new Date()).getTime()
   })
+  
+  ints.value = intervals(timing.value)
+  const avg = average(ints.value)
 
-  const ints = intervals(timing)
-  const avg = average(ints)
-  doCalculations(ints, avg)
-  doAnimating(ints, avg)
-
-  clearTimeout(resetTimeout)
-  resetTimeout = setTimeout(reset, 5000)
+  doCalculations(ints.value, avg)
+  doAnimating(ints.value, avg)
+  // clearTimeout(resetTimeout)
+  // resetTimeout = setTimeout(reset, 5000)
 }
 
 watch(timing, () => {
-  const ints = intervals(timing);
+  const ints = intervals(timing.value);
   if (ints.length > 1) {
     const avg = average(ints);
     const duration = avg / 1000; // Convert ms to seconds for CSS
@@ -152,7 +145,11 @@ watch(animationsEnabled, (v) => {
         </tbody>
       </table>
 
-      <div class="controls">
+      <div id="charts">
+        <Charts :intervals="ints" />
+      </div>
+
+      <div id="controls">
         <label class="help" title="Seizure Warning? Pretty obnoxious? Only kinda feels like it goes to the beat?"><input type="checkbox" id="checkbox" v-model="animationsEnabled" /> Enable Animations</label>
       </div>
     </div>
@@ -164,22 +161,40 @@ watch(animationsEnabled, (v) => {
   0%{
     background-position:0% 33%
   }
-  25%{
-  --lightness: 20%;
-  }
+  // 10%{
+  // --lightness: 21%;
+  // }
+  // 20%{
+  // --lightness: 22%;
+  // }
+  // 30%{
+  // --lightness: 23%;
+  // }
+  // 40%{
+  // --lightness: 24%;
+  // }
   50%{
     background-position:100% 67%;
     // LOL
     --angle: 12deg;
-    --degreeshift: 20;
-    --saturation: 50%;
-    --movement: 90%;
-    --lightness: 20%;
-    --basehue: 40;
+    --degreeshift: 30;
+    --saturation: 90%;
+    --movement: 400%;
+    --lightness: 25%;
+    --basehue: 270;
   }
-  75%{
-  --lightness: 20%;
-  }
+  // 60%{
+  // --lightness: 24%;
+  // }
+  // 70%{
+  // --lightness: 23%;
+  // }
+  // 80%{
+  // --lightness: 22%;
+  // }
+  // 90%{
+  // --lightness: 21%;
+  // }
   100%{
     background-position:0% 33%
   }
@@ -193,11 +208,11 @@ watch(animationsEnabled, (v) => {
 
 #page-wrap {
   // lol i spent way more time playing with these numbers for fun than i care to admit
-  --basehue: 200;
+  --basehue: 220;
   --degreeshift: 5;
-  --saturation: 85%;
-  --lightness: 20%;
-  --movement: 2%;
+  --saturation: 75%;
+  --lightness: 25%;
+  --movement: 60%;
   --angle: 90deg;
 
 
@@ -212,7 +227,7 @@ watch(animationsEnabled, (v) => {
   padding: 0;
   margin: 0;
   box-sizing: border-box;
-  background: linear-gradient(var(--angle), var(--highlight), var(--shadow), var(--highlight), var(--shadow));
+  background: linear-gradient(var(--angle), var(--highlight), var(--shadow), var(--highlight), var(--shadow), var(--highlight));
   background-size: var(--movement) var(--movement);
   color: #ccc;
 
@@ -274,6 +289,14 @@ watch(animationsEnabled, (v) => {
         text-align: right;
         width: 5rem;
       }
+    }
+
+
+    #charts {
+      margin-bottom: 2rem;
+    }
+
+    #controls {
     }
   }
 }
