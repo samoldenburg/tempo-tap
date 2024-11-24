@@ -4,7 +4,7 @@ import { onMounted, ref, watch } from 'vue'
 import Charts from './Charts.vue'
 
 const ORIGIN_NOTE = 5;
-const ANIMATION_RATE = 1/2;
+const ANIMATION_RATE = 1 / 2;
 
 const wrapRef = ref<HTMLElement | null>(null);
 
@@ -21,7 +21,7 @@ let bpm: Ref<number, number> = ref(0);
 let mae: Ref<number, number> = ref(0);
 let stdDev: Ref<number, number> = ref(0);
 
-const msIntervalToBpm = (interval: number): number => 60000/interval
+const msIntervalToBpm = (interval: number): number => 60000 / interval
 
 const intervals = (timing: Timing[]): number[] => timing.reduce((accumulator: number[], currentValue: Timing, currentIndex: number) => {
   if (currentIndex === 0) return accumulator
@@ -76,6 +76,14 @@ const doAnimating = (ints: number[], avg: number) => {
 }
 
 const handleKey = (event: KeyboardEvent) => {
+  const ignoreKeys = [
+    'AudioVolumeUp',
+    'AudioVolumeDown',
+    'MediaPlayPause',
+    'MediaTrackPrevious',
+    'MediaTrackNext',
+  ]
+  if (ignoreKeys.includes(event.key)) return
   if (event.key === 'Escape') {
     reset()
     return;
@@ -84,7 +92,7 @@ const handleKey = (event: KeyboardEvent) => {
   timing.value.push({
     t: (new Date()).getTime()
   })
-  
+
   ints.value = intervals(timing.value)
   const avg = average(ints.value)
 
@@ -130,18 +138,20 @@ watch(animationsEnabled, (v) => {
 
       <table>
         <tbody>
-        <tr>
-          <th>Key Presses</th>
-          <td>{{ timing.length }}</td>
-        </tr>
-        <tr>
-          <th class="help" title="Based on the timing of your 5th keyPress, and the current BPM rounded to the nearest whole number">Mean Absolute Error</th>
-          <td>{{ mae == 0 ? "(no data)" : mae.toFixed(2) }}</td>
-        </tr>
-        <tr>
-          <th>Standard Deviation</th>
-          <td>{{  stdDev.toFixed(2) }}</td>
-        </tr>
+          <tr>
+            <th>Key Presses</th>
+            <td>{{ timing.length }}</td>
+          </tr>
+          <tr>
+            <th class="help"
+              title="Based on the timing of your 5th keyPress, and the current BPM rounded to the nearest whole number">
+              Mean Absolute Error</th>
+            <td>{{ mae == 0 ? "(no data)" : mae.toFixed(2) }}</td>
+          </tr>
+          <tr>
+            <th>Standard Deviation</th>
+            <td>{{ stdDev.toFixed(2) }}</td>
+          </tr>
         </tbody>
       </table>
 
@@ -150,7 +160,8 @@ watch(animationsEnabled, (v) => {
       </div>
 
       <div id="controls">
-        <label class="help" title="Seizure Warning? Pretty obnoxious? Only kinda feels like it goes to the beat?"><input type="checkbox" id="checkbox" v-model="animationsEnabled" /> Enable Animations</label>
+        <label class="help" title="Seizure Warning? Pretty obnoxious? Only kinda feels like it goes to the beat?"><input
+            type="checkbox" id="checkbox" v-model="animationsEnabled" /> Enable Animations</label>
       </div>
     </div>
   </div>
@@ -158,23 +169,12 @@ watch(animationsEnabled, (v) => {
 
 <style lang="scss" scoped>
 @keyframes pulse {
-  0%{
-    background-position:0% 33%
+  0% {
+    background-position: 0% 33%
   }
-  // 10%{
-  // --lightness: 21%;
-  // }
-  // 20%{
-  // --lightness: 22%;
-  // }
-  // 30%{
-  // --lightness: 23%;
-  // }
-  // 40%{
-  // --lightness: 24%;
-  // }
-  50%{
-    background-position:100% 67%;
+
+  50% {
+    background-position: 100% 67%;
     // LOL
     --angle: 12deg;
     --degreeshift: 30;
@@ -183,20 +183,9 @@ watch(animationsEnabled, (v) => {
     --lightness: 25%;
     --basehue: 270;
   }
-  // 60%{
-  // --lightness: 24%;
-  // }
-  // 70%{
-  // --lightness: 23%;
-  // }
-  // 80%{
-  // --lightness: 22%;
-  // }
-  // 90%{
-  // --lightness: 21%;
-  // }
-  100%{
-    background-position:0% 33%
+
+  100% {
+    background-position: 0% 33%
   }
 }
 
@@ -244,7 +233,7 @@ watch(animationsEnabled, (v) => {
     &:after {
       content: "❓";
       font-size: 0.5em;
-      position:relative;
+      position: relative;
       bottom: 1em;
     }
   }
@@ -257,7 +246,7 @@ watch(animationsEnabled, (v) => {
     width: 30rem;
     padding: 2rem;
     background: rgba(50, 50, 50, 0.5);
-    box-shadow: 5px 5px 15px rgba(0,0,0, 0.35);
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.35);
     border-radius: 1rem;
 
     h1 {
@@ -276,7 +265,8 @@ watch(animationsEnabled, (v) => {
       border-collapse: collapse;
       margin: 2rem 0;
 
-      th,td {
+      th,
+      td {
         border: 1px solid #555;
         padding: 0.5rem 1rem;
       }
@@ -296,8 +286,7 @@ watch(animationsEnabled, (v) => {
       margin-bottom: 2rem;
     }
 
-    #controls {
-    }
+    #controls {}
   }
 }
 </style>
