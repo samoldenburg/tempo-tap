@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { type Ref } from 'vue';
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import Charts from './Charts.vue'
+import Game from './Game.vue'
 
 const ORIGIN_NOTE = 5;
 const ANIMATION_RATE = 1 / 2;
@@ -9,24 +10,32 @@ const ANIMATION_RATE = 1 / 2;
 const wrapRef = ref<HTMLElement | null>(null);
 
 export type Timing = {
-  t: number;
+  raw: number[],
+  intervals: number[],
+  avg: number,
+  bpm: number,
+  stdDev: number,
+  meanAbsErr: number
 }
 
-let resetTimeout: number | undefined;
-let timing: Ref<Timing[], Timing[]> = ref([]);
-let ints: Ref<number[], number[]> = ref([]);
+const timing: Ref<Timing, Timing> = ref({
+  raw: [],
+  intervals: [],
+  avg: 0,
+  bpm: 0,
+  stdDev: 0,
+  meanAbsErr: 0
+});
+
 let animationsEnabled: Ref<boolean, boolean> = ref(true);
 let wasReset: Ref<boolean, boolean> = ref(false);
-let bpm: Ref<number, number> = ref(0);
-let mae: Ref<number, number> = ref(0);
-let stdDev: Ref<number, number> = ref(0);
 
 const msIntervalToBpm = (interval: number): number => 60000 / interval
 
-const intervals = (timing: Timing[]): number[] => timing.reduce((accumulator: number[], currentValue: Timing, currentIndex: number) => {
+const intervals = (timing: number[]): number[] => timing.reduce((accumulator: number[], currentValue: number, currentIndex: number) => {
   if (currentIndex === 0) return accumulator
 
-  accumulator.push(timing[currentIndex].t - timing[currentIndex - 1].t)
+  accumulator.push(timing[currentIndex] - timing[currentIndex - 1])
   return accumulator
 }, [] as number[])
 
@@ -42,26 +51,31 @@ const meanAbsoluteError = (mean: number, intervals: number[]): number => {
 };
 
 const reset = () => {
-  timing.value = []
+  timing.value.raw = []
 }
 
-const doCalculations = (ints: number[], avg: number) => {
-  if (ints.length > 1) {
+const doCalculations = () => {
+  const { value: { intervals, avg } } = timing;
+  if (intervals.length > 1) {
     // timing calculations
-    bpm.value = msIntervalToBpm(avg)
-    stdDev.value = standardDeviation(avg, ints)
+
+    timing.value.bpm = msIntervalToBpm(avg)
+    timing.value.stdDev = standardDeviation(avg, intervals)
 
     // 5 intervals or more
-    if (ints.length >= ORIGIN_NOTE) {
+    if (intervals.length >= ORIGIN_NOTE) {
       // start at the 4th index
-      mae.value = meanAbsoluteError(Math.round(avg), ints.slice(ORIGIN_NOTE - 1))
+      timing.value.meanAbsErr = meanAbsoluteError(
+        avg,
+        intervals.slice(ORIGIN_NOTE - 1)
+      )
     }
   }
 }
 
-const doAnimating = (ints: number[], avg: number) => {
-  if (ints.length > 1) {
-    const duration = Math.round(avg) / 1000 * (1 / ANIMATION_RATE); // ms->s, apply rate
+const doAnimating = () => {
+  if (timing.value.intervals.length > 1) {
+    const duration = Math.round(timing.value.avg) / 1000 * (1 / ANIMATION_RATE); // ms->s, apply rate
     const pageWrap = wrapRef.value as unknown as HTMLElement;
     if (pageWrap) {
       pageWrap.style.animationDuration = `0s`;
@@ -89,21 +103,18 @@ const handleKey = (event: KeyboardEvent) => {
     return;
   }
 
-  timing.value.push({
-    t: (new Date()).getTime()
-  })
+  timing.value.raw.push((new Date()).getTime())
+  timing.value.intervals = intervals(timing.value.raw);
+  timing.value.avg = average(timing.value.intervals);
 
-  ints.value = intervals(timing.value)
-  const avg = average(ints.value)
-
-  doCalculations(ints.value, avg)
-  doAnimating(ints.value, avg)
+  doCalculations()
+  doAnimating()
   // clearTimeout(resetTimeout)
   // resetTimeout = setTimeout(reset, 5000)
 }
 
 watch(timing, () => {
-  const ints = intervals(timing.value);
+  const ints = intervals(timing.value.raw);
   if (ints.length > 1) {
     const avg = average(ints);
     const duration = avg / 1000; // Convert ms to seconds for CSS
@@ -121,7 +132,7 @@ watch(animationsEnabled, (v) => {
     return;
   }
 
-  if (bpm) {
+  if (timing.value.bpm) {
     const pageWrap = wrapRef.value as unknown as HTMLElement;
     pageWrap.classList.add('pulsing');
   }
@@ -132,7 +143,7 @@ watch(animationsEnabled, (v) => {
   <div id="page-wrap" tabindex="0" ref="wrapRef" @keydown="handleKey">
     <div id="inner">
       <h1 class="help" title="Tap to the beat of a song. Esc to reset.">Tempo Tap</h1>
-      <h2>BPM: {{ bpm.toFixed(2) }}</h2>
+      <h2>BPM: {{ timing.bpm.toFixed(2) }}</h2>
 
       <h3 v-if="wasReset">😎</h3>
 
@@ -140,23 +151,27 @@ watch(animationsEnabled, (v) => {
         <tbody>
           <tr>
             <th>Key Presses</th>
-            <td>{{ timing.length }}</td>
+            <td>{{ timing.raw.length }}</td>
           </tr>
           <tr>
             <th class="help"
               title="Based on the timing of your 5th keyPress, and the current BPM rounded to the nearest whole number">
               Mean Absolute Error</th>
-            <td>{{ mae == 0 ? "(no data)" : mae.toFixed(2) }}</td>
+            <td>{{ timing.meanAbsErr == 0 ? "(no data)" : timing.meanAbsErr.toFixed(2) }}</td>
           </tr>
           <tr>
             <th>Standard Deviation</th>
-            <td>{{ stdDev.toFixed(2) }}</td>
+            <td>{{ timing.stdDev.toFixed(2) }}</td>
           </tr>
         </tbody>
       </table>
 
       <div id="charts">
-        <Charts :intervals="ints" />
+        <Charts :intervals="timing.intervals" />
+      </div>
+
+      <div id="game">
+        <Game :timing="timing" />
       </div>
 
       <div id="controls">
@@ -240,14 +255,15 @@ watch(animationsEnabled, (v) => {
 
   #inner {
     position: relative;
-    top: 50%;
+    top: 4rem;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
     width: 30rem;
     padding: 2rem;
-    background: rgba(50, 50, 50, 0.5);
-    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.35);
-    border-radius: 1rem;
+    background: rgba(0, 0, 0, 0.35);
+    box-shadow: 1rem 1rem 2rem rgba(0, 0, 0, 0.35);
+    border-radius: 0.5rem;
+    border: 0.5rem solid rgba(255, 0, 255, 0.05);
 
     h1 {
       margin: 2rem 0;
