@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type Ref } from 'vue';
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import Charts from './Charts.vue'
 import Game from './Game.vue'
 
@@ -8,6 +8,15 @@ const ORIGIN_NOTE = 5;
 const ANIMATION_RATE = 1 / 2;
 
 const wrapRef = ref<HTMLElement | null>(null);
+
+// see: https://incolumitas.com/2021/12/18/on-high-precision-javascript-timers/
+// this is a hail mary to try to improve accuracy of timing intervals as much as possible
+// unfortunately the precision is ~100μs on my machine. maybe it will be better on others
+// this is about as accurate as simply using performance.now()
+const ts = new Worker('subworker.js');
+let elapsed: null | number = null;
+const t0 = performance.now();
+ts.postMessage(0);
 
 export type Timing = {
   raw: number[],
@@ -103,7 +112,10 @@ const handleKey = (event: KeyboardEvent) => {
     return;
   }
 
-  timing.value.raw.push((new Date()).getTime())
+  ts.postMessage(0);
+  elapsed = performance.now() - t0;
+
+  timing.value.raw.push(elapsed)
   timing.value.intervals = intervals(timing.value.raw);
   timing.value.avg = average(timing.value.intervals);
 
@@ -137,10 +149,18 @@ watch(animationsEnabled, (v) => {
     pageWrap.classList.add('pulsing');
   }
 })
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKey)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKey)
+})
 </script>
 
 <template>
-  <div id="page-wrap" tabindex="0" ref="wrapRef" @keydown="handleKey">
+  <div id="page-wrap" tabindex="0" ref="wrapRef">
     <div id="inner">
       <h1 class="help" title="Tap to the beat of a song. Esc to reset.">Tempo Tap</h1>
       <h2>BPM: {{ timing.bpm.toFixed(2) }}</h2>
@@ -167,11 +187,11 @@ watch(animationsEnabled, (v) => {
       </table>
 
       <div id="charts">
-        <Charts :intervals="timing.intervals" />
+        <Charts :timing="timing" />
       </div>
 
       <div id="game">
-        <Game :timing="timing" />
+        <Game v-if="true" :timing="timing" />
       </div>
 
       <div id="controls">

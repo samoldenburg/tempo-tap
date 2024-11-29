@@ -20,6 +20,13 @@ let animationFrameId = 0;
 
 const chart = genChart();
 
+// do bar lines next
+// they should be drawn every beat
+// and cross the receptors exactly on the beat
+// base the first "beat" on the 5th timing point
+// base the bpm, and hence scrollrate on the average since the 5th timing point
+// there will be no animation before beat 5
+
 const handleKeyPress = (event: KeyboardEvent) => {
   const ignoreKeys = [
     'AudioVolumeUp',

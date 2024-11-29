@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Chart, Grid, Line } from 'vue3-charts'
 import { defineProps, ref, provide, watch, type Ref } from 'vue'
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -11,10 +10,11 @@ import {
   GridComponent,
   MarkLineComponent
 } from 'echarts/components';
-import VChart, { THEME_KEY } from 'vue-echarts';
+import VChart from 'vue-echarts';
 import type { EChartsOption } from 'echarts/types/dist/shared';
+import type { Timing } from './App.vue';
 
-const props = defineProps(['intervals']) as { intervals: number[] }
+const props = defineProps(['timing']) as { timing: Timing }
 
 const debugInts = ref([406, 409, 440, 415, 400, 447, 436, 411, 392, 417, 394, 384, 389]);
 
@@ -102,8 +102,8 @@ const getChartOptions = (intervals: number[]): EChartsOption => {
   } as EChartsOption
 }
 
-const option = ref(getChartOptions(props.intervals));
-watch(() => props.intervals, (intervals) => {
+const option = ref(getChartOptions(props.timing.intervals));
+watch(() => props.timing.intervals, (intervals) => {
   option.value = getChartOptions(intervals)
 })
 </script>
