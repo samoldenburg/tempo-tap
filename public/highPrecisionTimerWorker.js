@@ -5,7 +5,7 @@ self.onmessage = function (e) {
 
   function incrementCounter() {
     Atomics.add(counter, 0, 1);
-    setImmediate(incrementCounter);
+    setTimeout(incrementCounter, 0);
   }
 
   incrementCounter();

@@ -9,15 +9,6 @@ const ANIMATION_RATE = 1 / 2;
 
 const wrapRef = ref<HTMLElement | null>(null);
 
-// see: https://incolumitas.com/2021/12/18/on-high-precision-javascript-timers/
-// this is a hail mary to try to improve accuracy of timing intervals as much as possible
-// unfortunately the precision is ~100μs on my machine. maybe it will be better on others
-// this is about as accurate as simply using performance.now()
-const ts = new Worker('subworker.js');
-let elapsed: null | number = null;
-const t0 = performance.now();
-ts.postMessage(0);
-
 export type Timing = {
   raw: number[],
   intervals: number[],
@@ -112,10 +103,7 @@ const handleKey = (event: KeyboardEvent) => {
     return;
   }
 
-  ts.postMessage(0);
-  elapsed = performance.now() - t0;
-
-  timing.value.raw.push(elapsed)
+  timing.value.raw.push(performance.now())
   timing.value.intervals = intervals(timing.value.raw);
   timing.value.avg = average(timing.value.intervals);
 
@@ -190,9 +178,11 @@ onBeforeUnmount(() => {
         <Charts :timing="timing" />
       </div>
 
+      <!--
       <div id="game">
         <Game v-if="true" :timing="timing" />
       </div>
+      -->
 
       <div id="controls">
         <label class="help" title="Seizure Warning? Pretty obnoxious? Only kinda feels like it goes to the beat?"><input
